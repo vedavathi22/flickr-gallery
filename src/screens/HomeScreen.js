@@ -1,170 +1,92 @@
-import { Feather, Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-import { useEffect, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import {
-  ActivityIndicator, Image,
-  RefreshControl,
+  SafeAreaView,
   ScrollView,
-  Share,
-  StyleSheet, Text,
-  TextInput, TouchableOpacity, View
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
-// TASK 1 API CONFIG
-const FLICKR_API = "https://api.flickr.com/services/rest/?method=flickr.photos.getRecent&per_page=20&page=1&api_key=6f102c62f41998d151e5a1b48713cf13&format=json&nojsoncallback=1&extras=url_s";
-const CACHE_KEY = "@flickr_v1_storage";
-
 export default function HomeScreen({ navigation }) {
-  const [photos, setPhotos] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [search, setSearch] = useState('');
-
-  useEffect(() => {
-    initializeAppData();
-  }, []);
-
-  // INSTAGRAM BEHAVIOR: Load cache first, then fetch fresh
-  const initializeAppData = async () => {
-    try {
-      const cached = await AsyncStorage.getItem(CACHE_KEY);
-      if (cached) {
-        setPhotos(JSON.parse(cached));
-        setLoading(false);
-      }
-      await fetchFlickrData(false);
-    } catch (e) {
-      await fetchFlickrData(true);
-    }
-  };
-
-  const fetchFlickrData = async (showUI = true) => {
-    if (showUI) setRefreshing(true);
-    try {
-      const res = await axios.get(FLICKR_API);
-      const freshData = res.data.photos.photo.map(p => ({
-        ...p,
-        isLiked: false,
-        isSaved: false,
-        comment: ''
-      }));
-
-      const cached = await AsyncStorage.getItem(CACHE_KEY);
-      if (JSON.stringify(freshData) !== cached) {
-        setPhotos(freshData);
-        await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(freshData));
-      }
-    } catch (err) {
-      console.log("Running in Offline Mode");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  // INTERACTION LOGIC (Saves to Cache)
-  const syncState = async (newList) => {
-    setPhotos(newList);
-    await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(newList));
-  };
-
-  const handleLike = (id) => syncState(photos.map(p => p.id === id ? {...p, isLiked: !p.isLiked} : p));
-  const handleSave = (id) => syncState(photos.map(p => p.id === id ? {...p, isSaved: !p.isSaved} : p));
-  const handleComment = (id, text) => syncState(photos.map(p => p.id === id ? {...p, comment: text} : p));
-
-  const filtered = photos.filter(p => (p.title || "").toLowerCase().includes(search.toLowerCase()));
-
-  if (loading && photos.length === 0) {
-    return <View style={styles.center}><ActivityIndicator size="large" color="#000" /></View>;
-  }
+  const activities = [
+    { id: '1', title: 'New Location Added', location: 'San Francisco, CA', time: '2m ago' },
+    { id: '2', title: 'New Location Added', location: 'San Francisco, CA', time: '2m ago' },
+  ];
 
   return (
-    <View style={styles.container}>
-      {/* HEADER: Search & Refresh */}
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.openDrawer()}>
           <Ionicons name="menu-outline" size={28} color="#000" />
         </TouchableOpacity>
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={16} color="#999" />
-          <TextInput 
-            placeholder="Search authors or titles..." 
-            style={styles.input} 
-            value={search} 
-            onChangeText={setSearch} 
-          />
-        </View>
-        <TouchableOpacity onPress={() => fetchFlickrData(true)}>
-          <Ionicons name="refresh" size={22} color="#000" />
-        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Home</Text>
+        <View style={{ width: 28 }} />
       </View>
 
-      <ScrollView 
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchFlickrData(true)} />}
-      >
-        <View style={styles.titleArea}>
-          <Text style={styles.titleText}>Recent Photos</Text>
-          <Text style={styles.subtitle}>Flickr Global Feed</Text>
+      <ScrollView style={{ padding: 20 }}>
+        {/* Blue Welcome Card */}
+        <View style={styles.welcomeCard}>
+          <Text style={styles.welcomeSub}>Welcome back,</Text>
+          <Text style={styles.welcomeTitle}>Good Morning!</Text>
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <Text style={styles.statNum}>12</Text>
+              <Text style={styles.statLabel}>Tasks</Text>
+            </View>
+            <View
+              style={[
+                styles.statBox,
+                { borderLeftWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
+              ]}
+            >
+              <Text style={styles.statNum}>5</Text>
+              <Text style={styles.statLabel}>Pending</Text>
+            </View>
+          </View>
         </View>
 
-        {filtered.map((item) => (
-          <View key={item.id} style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={styles.avatar} />
-              <Text style={styles.owner}>{item.owner}</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Recent Activity</Text>
+          <TouchableOpacity>
+            <Text style={styles.seeAll}>See All</Text>
+          </TouchableOpacity>
+        </View>
+
+        {activities.map(item => (
+          <View key={item.id} style={styles.activityCard}>
+            <View style={styles.iconCircle}>
+              <Ionicons name="location-outline" size={20} color="#6366f1" />
             </View>
-
-            <Image source={{ uri: item.url_s }} style={styles.image} />
-
-            <View style={styles.cardBody}>
-              <View style={styles.iconBar}>
-                <TouchableOpacity onPress={() => handleLike(item.id)}>
-                  <Ionicons name={item.isLiked ? "heart" : "heart-outline"} size={28} color={item.isLiked ? "red" : "black"} />
-                </TouchableOpacity>
-                <TouchableOpacity style={{marginLeft: 18}}>
-                  <Ionicons name="chatbubble-outline" size={24} color="black" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => Share.share({message: item.url_s})} style={{marginLeft: 18}}>
-                  <Feather name="send" size={24} color="black" />
-                </TouchableOpacity>
-                <View style={{flex: 1}} />
-                <TouchableOpacity onPress={() => handleSave(item.id)}>
-                  <Ionicons name={item.isSaved ? "bookmark" : "bookmark-outline"} size={24} color="black" />
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.photoTitle}>{item.title || "Untitled Feed Item"}</Text>
-              <TextInput 
-                placeholder="Add a comment..." 
-                style={styles.commentInput} 
-                value={item.comment}
-                onChangeText={(t) => handleComment(item.id, t)}
-              />
+            <View style={{ flex: 1, marginLeft: 15 }}>
+              <Text style={styles.activityTitle}>{item.title}</Text>
+              <Text style={styles.activityLoc}>{item.location}</Text>
             </View>
+            <Text style={styles.activityTime}>{item.time}</Text>
           </View>
         ))}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { paddingTop: 55, paddingHorizontal: 15, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#eee' },
-  searchBox: { flex: 1, flexDirection: 'row', backgroundColor: '#f5f5f5', marginHorizontal: 10, padding: 8, borderRadius: 10, alignItems: 'center' },
-  input: { flex: 1, marginLeft: 8, fontSize: 14 },
-  titleArea: { padding: 20 },
-  titleText: { fontSize: 26, fontWeight: 'bold' },
-  subtitle: { fontSize: 13, color: '#999', marginTop: 2 },
-  card: { marginBottom: 15 },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', padding: 12 },
-  avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#f0f0f0', marginRight: 10 },
-  owner: { fontWeight: '700', fontSize: 14 },
-  image: { width: '100%', height: 380, backgroundColor: '#fafafa' },
-  cardBody: { padding: 15 },
-  iconBar: { flexDirection: 'row', marginBottom: 12, alignItems: 'center' },
-  photoTitle: { fontSize: 14, fontWeight: '500', marginBottom: 10, lineHeight: 20 },
-  commentInput: { borderTopWidth: 1, borderTopColor: '#f9f9f9', paddingTop: 10, color: '#777', fontSize: 13 }
+  header: { flexDirection: 'row', justifyContent: 'space-between', padding: 15, alignItems: 'center' },
+  headerTitle: { fontSize: 18, fontWeight: 'bold' },
+  welcomeCard: { backgroundColor: '#818cf8', borderRadius: 20, padding: 25, marginBottom: 25 },
+  welcomeSub: { color: '#e0e7ff', fontSize: 16 },
+  welcomeTitle: { color: '#fff', fontSize: 28, fontWeight: 'bold', marginVertical: 10 },
+  statsRow: { flexDirection: 'row', marginTop: 15, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.2)', paddingTop: 15 },
+  statBox: { flex: 1, alignItems: 'center' },
+  statNum: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+  statLabel: { color: '#e0e7ff', fontSize: 12 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold' },
+  seeAll: { color: '#6366f1' },
+  activityCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f9fafb', padding: 15, borderRadius: 15, marginBottom: 10 },
+  iconCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#eef2ff', justifyContent: 'center', alignItems: 'center' },
+  activityTitle: { fontWeight: '600', fontSize: 14 },
+  activityLoc: { color: '#6b7280', fontSize: 12 },
+  activityTime: { color: '#9ca3af', fontSize: 12 },
 });
